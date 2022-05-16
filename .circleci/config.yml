@@ -208,6 +208,28 @@ jobs:
       - destroy-environment:
           workflow_id: "${CIRCLE_WORKFLOW_ID:0:7}"
 
+  configure-prometheus:
+    docker:
+      - image: python:3.7-alpine3.11
+    steps:
+      - checkout
+      - add_ssh_keys:
+          fingerprints: ["c3:1a:4a:50:3a:49:ce:83:fd:77:4c:24:52:b9:b4:c8"]
+      - attach_workspace:
+          at: ~/
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --update ansible tar gzip
+            pip3 install awscli
+      - run:
+          name: Configure server
+          command: |
+            cd .circleci/ansible
+            ansible-playbook -i inventory.txt configure-prometheus.yml
+      - destroy-environment:
+          workflow_id: "${CIRCLE_WORKFLOW_ID:0:7}"
+
   run-migrations:
     docker:
       - image: circleci/node:13.8.0
@@ -440,6 +462,8 @@ workflows:
           requires: [run-migrations]
       - deploy-backend:
           requires: [run-migrations]
+      - configure-prometheus:
+          requires: [deploy-backend]
       - smoke-test:
           requires: [deploy-backend, deploy-frontend]
       - cloudfront-update:
